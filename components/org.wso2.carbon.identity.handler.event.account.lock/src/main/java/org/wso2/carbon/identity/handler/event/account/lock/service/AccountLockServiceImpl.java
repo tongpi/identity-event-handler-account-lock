@@ -30,7 +30,8 @@ import org.wso2.carbon.user.core.UserCoreConstants;
 import java.util.Map;
 
 /**
- * Service implementation class of {@link AccountLockService} that returns account lock states.
+ * Service implementation class of {@link AccountLockService} that returns
+ * account lock states.
  */
 public class AccountLockServiceImpl implements AccountLockService {
 
@@ -49,26 +50,26 @@ public class AccountLockServiceImpl implements AccountLockService {
     }
 
     @Override
-    public boolean isAccountLocked(String username, String tenantDomain, String userStoreDomain) throws
-            AccountLockServiceException {
+    public boolean isAccountLocked(String username, String tenantDomain, String userStoreDomain)
+            throws AccountLockServiceException {
 
         return isAccountLocked(IdentityUtil.addDomainToName(username, userStoreDomain), tenantDomain);
     }
 
-    private boolean getAccountLockClaimValue(String username, UserStoreManager userStoreManager) throws
-            AccountLockServiceException {
+    private boolean getAccountLockClaimValue(String username, UserStoreManager userStoreManager)
+            throws AccountLockServiceException {
 
-        String accountLockedClaimValue = getClaimValue(username, userStoreManager, AccountConstants
-                .ACCOUNT_LOCKED_CLAIM);
+        String accountLockedClaimValue = getClaimValue(username, userStoreManager,
+                AccountConstants.ACCOUNT_LOCKED_CLAIM);
         return Boolean.parseBoolean(accountLockedClaimValue);
     }
 
-    private long getAccountUnlockTimeClaimValue(String username, UserStoreManager userStoreManager) throws
-            AccountLockServiceException {
+    private long getAccountUnlockTimeClaimValue(String username, UserStoreManager userStoreManager)
+            throws AccountLockServiceException {
 
         long unlockTime = 0;
-        String accountUnlockTimeClaimValue = getClaimValue(username, userStoreManager, AccountConstants
-                .ACCOUNT_UNLOCK_TIME_CLAIM);
+        String accountUnlockTimeClaimValue = getClaimValue(username, userStoreManager,
+                AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM);
         if (NumberUtils.isNumber(accountUnlockTimeClaimValue)) {
             unlockTime = Long.parseLong(accountUnlockTimeClaimValue);
         }
@@ -76,16 +77,16 @@ public class AccountLockServiceImpl implements AccountLockService {
         return unlockTime;
     }
 
-    private String getClaimValue(String username, UserStoreManager userStoreManager, String claimURI) throws
-            AccountLockServiceException {
+    private String getClaimValue(String username, UserStoreManager userStoreManager, String claimURI)
+            throws AccountLockServiceException {
 
         try {
-            Map<String, String> values = userStoreManager.getUserClaimValues(username, new String[]{claimURI},
+            Map<String, String> values = userStoreManager.getUserClaimValues(username, new String[] { claimURI },
                     UserCoreConstants.DEFAULT_PROFILE);
             return values.get(claimURI);
 
         } catch (UserStoreException e) {
-            throw new AccountLockServiceException("Error occurred while retrieving claim: " + claimURI, e);
+            throw new AccountLockServiceException("检索声明" + claimURI + "时出错", e);
         }
     }
 
@@ -93,30 +94,27 @@ public class AccountLockServiceImpl implements AccountLockService {
 
         int tenantId;
         try {
-            tenantId = AccountServiceDataHolder.getInstance().getRealmService().getTenantManager().getTenantId
-                    (tenantDomain);
+            tenantId = AccountServiceDataHolder.getInstance().getRealmService().getTenantManager()
+                    .getTenantId(tenantDomain);
         } catch (UserStoreException e) {
-            throw new AccountLockServiceException("Could not retrieve tenant id from tenant domain: " + tenantDomain,
-                    e);
+            throw new AccountLockServiceException("无法从租户域:" + tenantDomain + "中检索租户ID", e);
         }
 
         if (MultitenantConstants.INVALID_TENANT_ID == tenantId) {
-            throw new AccountLockServiceException("Invalid tenant domain: " + tenantDomain);
+            throw new AccountLockServiceException("无效的租户域:" + tenantDomain);
         }
 
         UserRealm userRealm;
         try {
             userRealm = AccountServiceDataHolder.getInstance().getRealmService().getTenantUserRealm(tenantId);
         } catch (UserStoreException e) {
-            throw new AccountLockServiceException("Could not retrieve user realm for tenant domain: " + tenantDomain,
-                    e);
+            throw new AccountLockServiceException("无法检索租户域：" + tenantDomain + "的用户域", e);
         }
 
         try {
             return userRealm.getUserStoreManager();
         } catch (UserStoreException e) {
-            throw new AccountLockServiceException("Could not retrieve user store for tenant domain: " + tenantDomain,
-                    e);
+            throw new AccountLockServiceException("无法检索租户域:" + tenantDomain + "的用户存储", e);
         }
     }
 }
