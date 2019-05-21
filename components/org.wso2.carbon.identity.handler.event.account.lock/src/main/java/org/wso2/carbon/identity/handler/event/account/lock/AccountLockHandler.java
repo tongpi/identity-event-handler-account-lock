@@ -54,19 +54,21 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
 
     private static ThreadLocal<String> lockedState = new ThreadLocal<>();
 
-    private enum lockedStates {LOCKED_MODIFIED, UNLOCKED_MODIFIED, LOCKED_UNMODIFIED, UNLOCKED_UNMODIFIED}
+    private enum lockedStates {
+        LOCKED_MODIFIED, UNLOCKED_MODIFIED, LOCKED_UNMODIFIED, UNLOCKED_UNMODIFIED
+    }
 
     public String getName() {
         return "account.lock.handler";
     }
 
     public String getFriendlyName() {
-        return "Account Locking";
+        return AccountUtil.getLocalValue("Account.Locking");
     }
 
     @Override
     public String getCategory() {
-        return "Login Policies";
+        return AccountUtil.getLocalValue("Login.Policies");
     }
 
     @Override
@@ -82,27 +84,35 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
     @Override
     public void init(InitConfig initConfig) {
         super.init(initConfig);
-        AccountServiceDataHolder.getInstance().getBundleContext().registerService
-                (IdentityConnectorConfig.class.getName(), this, null);
+        AccountServiceDataHolder.getInstance().getBundleContext()
+                .registerService(IdentityConnectorConfig.class.getName(), this, null);
     }
 
     public Map<String, String> getPropertyNameMapping() {
         Map<String, String> nameMapping = new HashMap<>();
-        nameMapping.put(AccountConstants.ACCOUNT_LOCKED_PROPERTY, "Account Lock Enabled");
-        nameMapping.put(AccountConstants.FAILED_LOGIN_ATTEMPTS_PROPERTY, "Maximum Failed Login Attempts");
-        nameMapping.put(AccountConstants.ACCOUNT_UNLOCK_TIME_PROPERTY, "Account Unlock Time");
-        nameMapping.put(AccountConstants.LOGIN_FAIL_TIMEOUT_RATIO_PROPERTY, "Lock Timeout Increment Factor");
-        nameMapping.put(AccountConstants.NOTIFICATION_INTERNALLY_MANAGE, "Enable Notification Internally Management");
+        nameMapping.put(AccountConstants.ACCOUNT_LOCKED_PROPERTY, AccountUtil.getLocalValue("Account.Lock.Enabled"));
+        nameMapping.put(AccountConstants.FAILED_LOGIN_ATTEMPTS_PROPERTY,
+                AccountUtil.getLocalValue("Maximum.Failed.Login.Attempts"));
+        nameMapping.put(AccountConstants.ACCOUNT_UNLOCK_TIME_PROPERTY,
+                AccountUtil.getLocalValue("Account.Unlock.Time"));
+        nameMapping.put(AccountConstants.LOGIN_FAIL_TIMEOUT_RATIO_PROPERTY,
+                AccountUtil.getLocalValue("Lock.Timeout.Increment.Factor"));
+        nameMapping.put(AccountConstants.NOTIFICATION_INTERNALLY_MANAGE,
+                AccountUtil.getLocalValue("Enable.Notification.Internally.Management"));
         return nameMapping;
     }
 
     @Override
     public Map<String, String> getPropertyDescriptionMapping() {
         Map<String, String> descriptionMapping = new HashMap<>();
-        descriptionMapping.put(AccountConstants.ACCOUNT_LOCKED_PROPERTY, "Enable account locking for failed logins");
-        descriptionMapping.put(AccountConstants.FAILED_LOGIN_ATTEMPTS_PROPERTY, "Number of failed attempts allows without locking the account");
-        descriptionMapping.put(AccountConstants.ACCOUNT_UNLOCK_TIME_PROPERTY, "Account locked time span in minutes");
-        descriptionMapping.put(AccountConstants.NOTIFICATION_INTERNALLY_MANAGE, "Set false if the client application handles notification sending");
+        descriptionMapping.put(AccountConstants.ACCOUNT_LOCKED_PROPERTY,
+                AccountUtil.getLocalValue("Enable.account.locking.for.failed.logins"));
+        descriptionMapping.put(AccountConstants.FAILED_LOGIN_ATTEMPTS_PROPERTY,
+                AccountUtil.getLocalValue("Number.of.failed.attempts.allows.without.locking.the.account"));
+        descriptionMapping.put(AccountConstants.ACCOUNT_UNLOCK_TIME_PROPERTY,
+                AccountUtil.getLocalValue("Account.locked.time.span.in.minutes"));
+        descriptionMapping.put(AccountConstants.NOTIFICATION_INTERNALLY_MANAGE,
+                AccountUtil.getLocalValue("Set.false.if.the.client.application.handles.notification.sending"));
         return descriptionMapping;
     }
 
@@ -116,7 +126,8 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
 
         Map<String, Object> eventProperties = event.getEventProperties();
         String userName = (String) eventProperties.get(IdentityEventConstants.EventProperty.USER_NAME);
-        UserStoreManager userStoreManager = (UserStoreManager) eventProperties.get(IdentityEventConstants.EventProperty.USER_STORE_MANAGER);
+        UserStoreManager userStoreManager = (UserStoreManager) eventProperties
+                .get(IdentityEventConstants.EventProperty.USER_STORE_MANAGER);
         String userStoreDomainName = AccountUtil.getUserStoreDomainName(userStoreManager);
         String tenantDomain = (String) eventProperties.get(IdentityEventConstants.EventProperty.TENANT_DOMAIN);
 
@@ -126,10 +137,11 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
         int maximumFailedAttempts = 0;
         double unlockTimeRatio = 1;
         try {
-            identityProperties = AccountServiceDataHolder.getInstance()
-                    .getIdentityGovernanceService().getConfiguration(getPropertyNames(), tenantDomain);
+            identityProperties = AccountServiceDataHolder.getInstance().getIdentityGovernanceService()
+                    .getConfiguration(getPropertyNames(), tenantDomain);
         } catch (IdentityGovernanceException e) {
-            throw new IdentityEventException("Error while retrieving Account Locking Handler properties.", e);
+            throw new IdentityEventException(
+                    AccountUtil.getLocalValue("Error.while.retrieving.Account.Locking.Handler.properties") + "。", e);
         }
         for (Property identityProperty : identityProperties) {
             if (AccountConstants.ACCOUNT_LOCKED_PROPERTY.equals(identityProperty.getName())) {
@@ -151,7 +163,8 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
         if (!accountLockedEnabled) {
 
             if (log.isDebugEnabled()) {
-                log.debug("Account lock handler is disabled in tenant: " + tenantDomain);
+                log.debug(
+                        AccountUtil.getLocalValue("Account.lock.handler.is.disabled.in.tenant") + ": " + tenantDomain);
             }
             return;
         }
@@ -161,7 +174,7 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
         try {
             userExists = userStoreManager.isExistingUser(usernameWithDomain);
         } catch (UserStoreException e) {
-            throw new IdentityEventException("Error in accessing user store", e);
+            throw new IdentityEventException(AccountUtil.getLocalValue("Error in accessing user store"), e);
         }
         if (!userExists) {
             return;
@@ -183,29 +196,29 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
     }
 
     protected boolean handlePreAuthentication(Event event, String userName, UserStoreManager userStoreManager,
-                                              String userStoreDomainName, String tenantDomain,
-                                              Property[] identityProperties, int maximumFailedAttempts,
-                                              String accountLockTime, double unlockTimeRatio)
-            throws AccountLockException {
+            String userStoreDomainName, String tenantDomain, Property[] identityProperties, int maximumFailedAttempts,
+            String accountLockTime, double unlockTimeRatio) throws AccountLockException {
 
         if (isAuthPolicyAccountExistCheck() && !isUserExistsInDomain(userStoreManager, userName)) {
-            IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants
-                    .ErrorCode.USER_DOES_NOT_EXIST);
+            IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(
+                    UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST);
             IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
         }
 
         if (isAccountLock(userName, userStoreManager)) {
             if (isAccountLockByPassForUser(userStoreManager, userName)) {
                 if (log.isDebugEnabled()) {
-                    String bypassMsg = String.format("Account locking is bypassed as lock bypass role: %s is " +
-                            "assigned to the user %s", AccountConstants.ACCOUNT_LOCK_BYPASS_ROLE, userName);
+                    String bypassMsg = String.format("作为锁定旁路角色绕过帐户锁定：%s 已经分配给了用户 %s",
+                            AccountConstants.ACCOUNT_LOCK_BYPASS_ROLE, userName);
                     log.debug(bypassMsg);
                 }
                 return true;
             }
 
-            //User account is locked. If the current time is not exceeded user unlock time, send a error message
-            // saying user is locked, otherwise users can try to authenticate and unlock their account upon a
+            // User account is locked. If the current time is not exceeded user unlock time,
+            // send a error message
+            // saying user is locked, otherwise users can try to authenticate and unlock
+            // their account upon a
             // successful authentication.
 
             long unlockTime = getUnlockTime(userName, userStoreManager);
@@ -214,19 +227,25 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
 
                 String message;
                 if (StringUtils.isNotBlank(userStoreDomainName)) {
-                    message = "Account is locked for user " + userName + " in user store "
-                            + userStoreDomainName + " in tenant " + tenantDomain + ". Cannot login until the " +
-                            "account is unlocked.";
+                    // message = "Account is locked for user " + userName + " in user store " +
+                    // userStoreDomainName
+                    // + " in tenant " + tenantDomain + ". Cannot login until the " + "account is
+                    // unlocked.";
+                    message = "租户" + tenantDomain + "的用户存储" + userStoreDomainName + "中的用户" + userName
+                            + "的账户已被锁定。解锁账户之前无法登录。";
                 } else {
-                    message = "Account is locked for user " + userName + " in tenant " + tenantDomain + ". Cannot" +
-                            " login until the account is unlocked.";
+                    // message = "Account is locked for user " + userName + " in tenant " +
+                    // tenantDomain + ". Cannot"
+                    // + " login until the account is unlocked.";
+                    message = "租户" + tenantDomain + "的用户" + userName + "的账户已被锁定。解锁账户之前无法登录。";
                 }
 
                 if (log.isDebugEnabled()) {
                     log.debug(message);
                 }
 
-                IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants.ErrorCode.USER_IS_LOCKED);
+                IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(
+                        UserCoreConstants.ErrorCode.USER_IS_LOCKED);
                 IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
                 throw new AccountLockException(UserCoreConstants.ErrorCode.USER_IS_LOCKED, message);
             }
@@ -235,34 +254,31 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
     }
 
     protected boolean handlePostAuthentication(Event event, String userName, UserStoreManager userStoreManager,
-                                               String userStoreDomainName, String tenantDomain,
-                                               Property[] identityProperties, int maximumFailedAttempts,
-                                               String accountLockTime, double unlockTimeRatio)
-            throws AccountLockException {
+            String userStoreDomainName, String tenantDomain, Property[] identityProperties, int maximumFailedAttempts,
+            String accountLockTime, double unlockTimeRatio) throws AccountLockException {
 
         Map<String, String> claimValues = null;
         int currentFailedAttempts = 0;
         try {
-            claimValues = userStoreManager.getUserClaimValues(userName, new String[]{
-                            AccountConstants.FAILED_LOGIN_LOCKOUT_COUNT_CLAIM,
-                            AccountConstants.FAILED_LOGIN_ATTEMPTS_CLAIM,
-                            AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM,
-                            AccountConstants.ACCOUNT_LOCKED_CLAIM}
-                    , UserCoreConstants.DEFAULT_PROFILE);
+            claimValues = userStoreManager.getUserClaimValues(userName,
+                    new String[] { AccountConstants.FAILED_LOGIN_LOCKOUT_COUNT_CLAIM,
+                            AccountConstants.FAILED_LOGIN_ATTEMPTS_CLAIM, AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM,
+                            AccountConstants.ACCOUNT_LOCKED_CLAIM },
+                    UserCoreConstants.DEFAULT_PROFILE);
 
             String currentFailedAttemptCount = claimValues.get(AccountConstants.FAILED_LOGIN_ATTEMPTS_CLAIM);
             if (StringUtils.isNotBlank(currentFailedAttemptCount)) {
                 currentFailedAttempts = Integer.parseInt(currentFailedAttemptCount);
             }
         } catch (UserStoreException e) {
-            throw new AccountLockException("Error occurred while retrieving "
-                    + AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM + " , "
-                    + AccountConstants.FAILED_LOGIN_ATTEMPTS_CLAIM + " and "
+            throw new AccountLockException("检索时发生错误 " + AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM + " , "
+                    + AccountConstants.FAILED_LOGIN_ATTEMPTS_CLAIM + " 和 "
                     + AccountConstants.FAILED_LOGIN_LOCKOUT_COUNT_CLAIM, e);
         }
 
         if ((Boolean) event.getEventProperties().get(IdentityEventConstants.EventProperty.OPERATION_STATUS)) {
-            //User is authenticated, Need to check the unlock time to verify whether the user is previously locked.
+            // User is authenticated, Need to check the unlock time to verify whether the
+            // user is previously locked.
 
             long unlockTime = 0;
             String userClaimValue = claimValues.get(AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM);
@@ -281,14 +297,12 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
                     userStoreManager.setUserClaimValues(userName, newClaims, null);
 
                     if (log.isDebugEnabled()) {
-                        log.debug(String.format("User %s is unlocked after exceeding the account locked time or " +
-                                        "account lock bypassing is enabled", userName));
+                        log.debug(String.format("超过帐户锁定时间或启用帐户锁定旁路后，用户%s将解锁", userName));
                     }
                 } catch (UserStoreException e) {
-                    throw new AccountLockException("Error occurred while storing "
-                            + AccountConstants.FAILED_LOGIN_ATTEMPTS_CLAIM + ", "
+                    throw new AccountLockException("存储时出错 " + AccountConstants.FAILED_LOGIN_ATTEMPTS_CLAIM + ", "
                             + AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM + ", "
-                            + AccountConstants.FAILED_LOGIN_LOCKOUT_COUNT_CLAIM + " and "
+                            + AccountConstants.FAILED_LOGIN_LOCKOUT_COUNT_CLAIM + " 和 "
                             + AccountConstants.ACCOUNT_LOCKED_CLAIM, e);
                 }
             }
@@ -306,17 +320,17 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
             newClaims.put(AccountConstants.FAILED_LOGIN_ATTEMPTS_CLAIM, currentFailedAttempts + "");
 
             if (isAccountLockByPassForUser(userStoreManager, userName)) {
-                IdentityErrorMsgContext customErrorMessageContext =
-                        new IdentityErrorMsgContext(UserCoreConstants.ErrorCode.INVALID_CREDENTIAL,
-                                currentFailedAttempts, maximumFailedAttempts);
+                IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(
+                        UserCoreConstants.ErrorCode.INVALID_CREDENTIAL, currentFailedAttempts, maximumFailedAttempts);
                 IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
                 if (log.isDebugEnabled()) {
-                    String msg = String.format("Login attempt failed. Bypassing account locking for user %s", userName);
+                    String msg = String.format("登录尝试失败。 绕过用户%s的帐户锁定", userName);
                     log.debug(msg);
                 }
                 return true;
             } else if (currentFailedAttempts >= maximumFailedAttempts) {
-                //Current failed attempts exceeded maximum allowed attempts. So their user should be locked.
+                // Current failed attempts exceeded maximum allowed attempts. So their user
+                // should be locked.
 
                 newClaims.put(AccountConstants.ACCOUNT_LOCKED_CLAIM, "true");
                 if (NumberUtils.isNumber(accountLockTime)) {
@@ -324,21 +338,28 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
                     if (unlockTimePropertyValue != 0) {
 
                         if (log.isDebugEnabled()) {
-                            log.debug("Set account unlock time for user:" + userName + " of tenant domain: " +
-                                    tenantDomain + " userstore domain: " + userStoreDomainName + " adding account " +
-                                    "unlock time out: " + unlockTimePropertyValue + ", account lock timeout increment" +
-                                    " factor: " + unlockTimeRatio + " raised to the power of failed login attempt " +
-                                    "cycles: " + failedLoginLockoutCountValue);
+                            // log.debug("Set account unlock time for user:" + userName + " of tenant
+                            // domain: "
+                            // + tenantDomain + " userstore domain: " + userStoreDomainName + " adding
+                            // account "
+                            // + "unlock time out: " + unlockTimePropertyValue + ", account lock timeout
+                            // increment"
+                            // + " factor: " + unlockTimeRatio + " raised to the power of failed login
+                            // attempt "
+                            // + "cycles: " + failedLoginLockoutCountValue);
+                            log.debug("为租户：" + tenantDomain + "的用户存储域：" + userStoreDomainName + "的用户：" + userName
+                                    + "设置账户解锁时间，添加解锁超时时间：" + unlockTimePropertyValue + "，帐户锁定超时增量因子：" + unlockTimeRatio
+                                    + "提升到失败登录尝试周期的力量：" + failedLoginLockoutCountValue);
                         }
 
                         /**
-                         * If account unlock time out is configured, calculates the account unlock time as below.
-                         * account unlock time =
-                         *      current system time + (account unlock time out configured + account lock time out
-                         *      increment factor raised to the power of failed login attempt cycles)
+                         * If account unlock time out is configured, calculates the account unlock time
+                         * as below. account unlock time = current system time + (account unlock time
+                         * out configured + account lock time out increment factor raised to the power
+                         * of failed login attempt cycles)
                          */
-                        unlockTimePropertyValue = (long) (unlockTimePropertyValue * 1000 * 60 * Math.pow
-                                (unlockTimeRatio, failedLoginLockoutCountValue));
+                        unlockTimePropertyValue = (long) (unlockTimePropertyValue * 1000 * 60
+                                * Math.pow(unlockTimeRatio, failedLoginLockoutCountValue));
                         long unlockTime = System.currentTimeMillis() + unlockTimePropertyValue;
                         newClaims.put(AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM, unlockTime + "");
                     }
@@ -348,74 +369,74 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
                 newClaims.put(AccountConstants.FAILED_LOGIN_LOCKOUT_COUNT_CLAIM, failedLoginLockoutCountValue + "");
                 newClaims.put(AccountConstants.FAILED_LOGIN_ATTEMPTS_CLAIM, "0");
 
-                IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants
-                        .ErrorCode.USER_IS_LOCKED, currentFailedAttempts, maximumFailedAttempts);
+                IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(
+                        UserCoreConstants.ErrorCode.USER_IS_LOCKED, currentFailedAttempts, maximumFailedAttempts);
                 IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
                 IdentityUtil.threadLocalProperties.get().put(IdentityCoreConstants.USER_ACCOUNT_STATE,
                         UserCoreConstants.ErrorCode.USER_IS_LOCKED);
 
                 if (log.isDebugEnabled()) {
-                    log.debug(String.format("User %s is locked since he/she exceeded the maximum allowed failed attempts", userName));
+                    log.debug(String.format("用户 %s被锁定，因为他/她超过了允许的最大失败尝试次数", userName));
                 }
 
             } else {
-                IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants.ErrorCode.INVALID_CREDENTIAL,
-                        currentFailedAttempts, maximumFailedAttempts);
+                IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(
+                        UserCoreConstants.ErrorCode.INVALID_CREDENTIAL, currentFailedAttempts, maximumFailedAttempts);
                 IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
             }
             try {
                 userStoreManager.setUserClaimValues(userName, newClaims, null);
             } catch (UserStoreException e) {
-                throw new AccountLockException("Error occurred while locking user account", e);
+                throw new AccountLockException(AccountUtil.getLocalValue("Error.occurred.while.locking.user.account"),
+                        e);
             } catch (NumberFormatException e) {
-                throw new AccountLockException("Error occurred while parsing config values", e);
+                throw new AccountLockException(AccountUtil.getLocalValue("Error.occurred.while.parsing.config.values"),
+                        e);
             }
         }
         return true;
     }
 
     /**
-     * Check whether the account can be unlocked by checking whether account unlock time is exceeded or account bypass
-     * role is attached
-     * @param userName name of the logged in user
-     * @param userStoreManager user store
+     * Check whether the account can be unlocked by checking whether account unlock
+     * time is exceeded or account bypass role is attached
+     * 
+     * @param userName              name of the logged in user
+     * @param userStoreManager      user store
      * @param currentFailedAttempts number of fail attempts
-     * @param unlockTime time which account can be unlocked
-     * @param accountLockClaim current lock claim value
+     * @param unlockTime            time which account can be unlocked
+     * @param accountLockClaim      current lock claim value
      * @return whether the account can be unlocked
      * @throws AccountLockException
      */
     private boolean isUserUnlock(String userName, UserStoreManager userStoreManager, int currentFailedAttempts,
-                                 long unlockTime, String accountLockClaim) throws AccountLockException {
+            long unlockTime, String accountLockClaim) throws AccountLockException {
 
-        return (unlockTime != 0 && System.currentTimeMillis() >= unlockTime)
-                || currentFailedAttempts > 0
+        return (unlockTime != 0 && System.currentTimeMillis() >= unlockTime) || currentFailedAttempts > 0
                 || ((Boolean.parseBoolean(accountLockClaim) && isAccountLockByPassForUser(userStoreManager, userName)));
     }
 
     protected boolean handlePreSetUserClaimValues(Event event, String userName, UserStoreManager userStoreManager,
-                                                  String userStoreDomainName, String tenantDomain,
-                                                  Property[] identityProperties, int maximumFailedAttempts,
-                                                  String accountLockTime, double unlockTimeRatio)
-            throws AccountLockException {
+            String userStoreDomainName, String tenantDomain, Property[] identityProperties, int maximumFailedAttempts,
+            String accountLockTime, double unlockTimeRatio) throws AccountLockException {
 
         if (lockedState.get() != null) {
             return true;
         }
         Boolean existingAccountLockedValue;
         try {
-            Map<String, String> claimValues = userStoreManager.getUserClaimValues(userName, new String[]{
-                    AccountConstants.ACCOUNT_LOCKED_CLAIM}, UserCoreConstants.DEFAULT_PROFILE);
+            Map<String, String> claimValues = userStoreManager.getUserClaimValues(userName,
+                    new String[] { AccountConstants.ACCOUNT_LOCKED_CLAIM }, UserCoreConstants.DEFAULT_PROFILE);
             existingAccountLockedValue = Boolean.valueOf(claimValues.get(AccountConstants.ACCOUNT_LOCKED_CLAIM));
 
         } catch (UserStoreException e) {
-            throw new AccountLockException("Error occurred while retrieving " + AccountConstants
-                    .ACCOUNT_LOCKED_CLAIM + " claim value", e);
+            throw new AccountLockException("检索时发生错误 " + AccountConstants.ACCOUNT_LOCKED_CLAIM + " 声明值", e);
         }
-        String newStateString = ((Map<String, String>) event.getEventProperties().get("USER_CLAIMS")).get(AccountConstants.ACCOUNT_LOCKED_CLAIM);
+        String newStateString = ((Map<String, String>) event.getEventProperties().get("USER_CLAIMS"))
+                .get(AccountConstants.ACCOUNT_LOCKED_CLAIM);
         if (StringUtils.isNotBlank(newStateString)) {
-            Boolean newAccountLockedValue = Boolean.parseBoolean(
-                    ((Map<String, String>) event.getEventProperties().get("USER_CLAIMS"))
+            Boolean newAccountLockedValue = Boolean
+                    .parseBoolean(((Map<String, String>) event.getEventProperties().get("USER_CLAIMS"))
                             .get(AccountConstants.ACCOUNT_LOCKED_CLAIM));
             if (existingAccountLockedValue != newAccountLockedValue) {
                 if (existingAccountLockedValue) {
@@ -443,43 +464,43 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
     }
 
     protected boolean handlePostSetUserClaimValues(Event event, String userName, UserStoreManager userStoreManager,
-                                                   String userStoreDomainName, String tenantDomain,
-                                                   Property[] identityProperties, int maximumFailedAttempts,
-                                                   String accountLockTime, double unlockTimeRatio)
-            throws AccountLockException {
+            String userStoreDomainName, String tenantDomain, Property[] identityProperties, int maximumFailedAttempts,
+            String accountLockTime, double unlockTimeRatio) throws AccountLockException {
 
         try {
             boolean notificationInternallyManage = true;
 
             try {
-                notificationInternallyManage = Boolean.parseBoolean(AccountUtil.getConnectorConfig(AccountConstants
-                        .NOTIFICATION_INTERNALLY_MANAGE, tenantDomain));
+                notificationInternallyManage = Boolean.parseBoolean(
+                        AccountUtil.getConnectorConfig(AccountConstants.NOTIFICATION_INTERNALLY_MANAGE, tenantDomain));
             } catch (IdentityEventException e) {
-                log.warn("Error while reading Notification internally manage property in account lock handler");
+                log.warn(AccountUtil.getLocalValue(
+                        "Error.while.reading.Notification.internally.manage.property.in.account.lock.handler"));
                 if (log.isDebugEnabled()) {
-                    log.debug("Error while reading Notification internally manage property in account lock handler", e);
+                    log.debug(AccountUtil.getLocalValue(
+                            "Error.while.reading.Notification.internally.manage.property.in.account.lock.handler"), e);
                 }
             }
 
             if (lockedStates.UNLOCKED_MODIFIED.toString().equals(lockedState.get())) {
 
                 if (log.isDebugEnabled()) {
-                    log.debug(String.format("User %s is unlocked", userName));
+                    log.debug(String.format("用户%s已解锁", userName));
                 }
 
                 if (notificationInternallyManage) {
-                    triggerNotification(event, userName, userStoreManager, userStoreDomainName, tenantDomain, identityProperties,
-                            AccountConstants.EMAIL_TEMPLATE_TYPE_ACC_UNLOCKED);
+                    triggerNotification(event, userName, userStoreManager, userStoreDomainName, tenantDomain,
+                            identityProperties, AccountConstants.EMAIL_TEMPLATE_TYPE_ACC_UNLOCKED);
                 }
             } else if (lockedStates.LOCKED_MODIFIED.toString().equals(lockedState.get())) {
 
                 if (log.isDebugEnabled()) {
-                    log.debug(String.format("User %s is locked", userName));
+                    log.debug(String.format("用户%s已被锁定", userName));
                 }
 
                 if (notificationInternallyManage) {
-                    triggerNotification(event, userName, userStoreManager, userStoreDomainName, tenantDomain, identityProperties,
-                            AccountConstants.EMAIL_TEMPLATE_TYPE_ACC_LOCKED);
+                    triggerNotification(event, userName, userStoreManager, userStoreDomainName, tenantDomain,
+                            identityProperties, AccountConstants.EMAIL_TEMPLATE_TYPE_ACC_LOCKED);
                 }
             }
         } finally {
@@ -509,9 +530,8 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
     }
 
     protected void triggerNotification(Event event, String userName, UserStoreManager userStoreManager,
-                                       String userStoreDomainName, String tenantDomain,
-                                       Property[] identityProperties, String notificationEvent) throws
-            AccountLockException {
+            String userStoreDomainName, String tenantDomain, Property[] identityProperties, String notificationEvent)
+            throws AccountLockException {
 
         String eventName = IdentityEventConstants.Event.TRIGGER_NOTIFICATION;
 
@@ -524,8 +544,9 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
         try {
             AccountServiceDataHolder.getInstance().getIdentityEventService().handleEvent(identityMgtEvent);
         } catch (Exception e) {
-            String errorMsg = "Error occurred while calling triggerNotification, detail : " + e.getMessage();
-            //We are not throwing any exception from here, because this event notification should not break the main
+            String errorMsg = "回调triggerNotification时发生错误, 详情: " + e.getMessage();
+            // We are not throwing any exception from here, because this event notification
+            // should not break the main
             // flow.
             log.warn(errorMsg);
             if (log.isDebugEnabled()) {
@@ -539,23 +560,22 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
         long unlockTime = 0;
 
         try {
-            Map<String, String> values = userStoreManager.getUserClaimValues(userName, new String[]{
-                    AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM}, UserCoreConstants.DEFAULT_PROFILE);
+            Map<String, String> values = userStoreManager.getUserClaimValues(userName,
+                    new String[] { AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM }, UserCoreConstants.DEFAULT_PROFILE);
             String userClaimValue = values.get(AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM);
 
             if (NumberUtils.isNumber(userClaimValue)) {
                 unlockTime = Long.parseLong(userClaimValue);
             }
         } catch (UserStoreException e) {
-            throw new AccountLockException("Error occurred while retrieving " + AccountConstants
-                    .ACCOUNT_UNLOCK_TIME_CLAIM + " claim value", e);
+            throw new AccountLockException("检索时发生错误 " + AccountConstants.ACCOUNT_UNLOCK_TIME_CLAIM + " 声明值", e);
         }
         return unlockTime;
     }
 
     /**
      *
-     * @param userName Current username
+     * @param userName         Current username
      * @param userStoreManager User store
      * @return State whether current user is a privileged user
      * @throws AccountLockException
@@ -564,18 +584,18 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
 
         String accountLockedClaim;
         try {
-            Map<String, String> values = userStoreManager.getUserClaimValues(userName, new String[]{
-                    AccountConstants.ACCOUNT_LOCKED_CLAIM}, UserCoreConstants.DEFAULT_PROFILE);
+            Map<String, String> values = userStoreManager.getUserClaimValues(userName,
+                    new String[] { AccountConstants.ACCOUNT_LOCKED_CLAIM }, UserCoreConstants.DEFAULT_PROFILE);
             accountLockedClaim = values.get(AccountConstants.ACCOUNT_LOCKED_CLAIM);
 
         } catch (UserStoreException e) {
-            throw new AccountLockException("Error occurred while retrieving " + AccountConstants
-                    .ACCOUNT_LOCKED_CLAIM + " claim value", e);
+            throw new AccountLockException("检索时发生错误" + AccountConstants.ACCOUNT_LOCKED_CLAIM + " 声明值", e);
         }
         return Boolean.parseBoolean(accountLockedClaim);
     }
 
-    private boolean isUserExistsInDomain(UserStoreManager userStoreManager, String userName) throws AccountLockException {
+    private boolean isUserExistsInDomain(UserStoreManager userStoreManager, String userName)
+            throws AccountLockException {
 
         boolean isExists = false;
         try {
@@ -583,7 +603,8 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
                 isExists = true;
             }
         } catch (UserStoreException e) {
-            throw new AccountLockException("Error occurred while check user existence: " + userName, e);
+            throw new AccountLockException(
+                    AccountUtil.getLocalValue("Error.occurred.while.check.user.existence") + ": " + userName, e);
         }
         return isExists;
     }
@@ -593,7 +614,8 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
         return Boolean.parseBoolean(IdentityUtil.getProperty("AuthenticationPolicy.CheckAccountExist"));
     }
 
-    private boolean isAccountLockByPassForUser(UserStoreManager userStoreManager, String userName) throws AccountLockException {
+    private boolean isAccountLockByPassForUser(UserStoreManager userStoreManager, String userName)
+            throws AccountLockException {
 
         try {
             String[] roleList = userStoreManager.getRoleListOfUser(userName);
@@ -601,7 +623,8 @@ public class AccountLockHandler extends AbstractEventHandler implements Identity
                 return ArrayUtils.contains(roleList, AccountConstants.ACCOUNT_LOCK_BYPASS_ROLE);
             }
         } catch (UserStoreException e) {
-            throw new AccountLockException("Error occurred while listing user role: " + userName, e);
+            throw new AccountLockException(
+                    AccountUtil.getLocalValue("Error.occurred.while.listing.user.role") + ": " + userName, e);
         }
         return false;
     }

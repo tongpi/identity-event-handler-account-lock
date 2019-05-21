@@ -33,17 +33,21 @@ import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
- * @scr.component name="handler.event.account.lock"
- * immediate="true"
+ * @scr.component name="handler.event.account.lock" immediate="true"
  * @scr.reference name="IdentityGovernanceService"
- * interface="org.wso2.carbon.identity.governance.IdentityGovernanceService" cardinality="1..1"
- * policy="dynamic" bind="setIdentityGovernanceService" unbind="unsetIdentityGovernanceService"
+ *                interface="org.wso2.carbon.identity.governance.IdentityGovernanceService"
+ *                cardinality="1..1" policy="dynamic"
+ *                bind="setIdentityGovernanceService"
+ *                unbind="unsetIdentityGovernanceService"
  * @scr.reference name="EventMgtService"
- * interface="org.wso2.carbon.identity.event.services.IdentityEventService" cardinality="1..1"
- * policy="dynamic" bind="setIdentityEventService" unbind="unsetIdentityEventService"
+ *                interface="org.wso2.carbon.identity.event.services.IdentityEventService"
+ *                cardinality="1..1" policy="dynamic"
+ *                bind="setIdentityEventService"
+ *                unbind="unsetIdentityEventService"
  * @scr.reference name="RealmService"
- * interface="org.wso2.carbon.user.core.service.RealmService" cardinality="1..1"
- * policy="dynamic" bind="setRealmService" unbind="unsetRealmService"
+ *                interface="org.wso2.carbon.user.core.service.RealmService"
+ *                cardinality="1..1" policy="dynamic" bind="setRealmService"
+ *                unbind="unsetRealmService"
  */
 public class AccountServiceComponent {
 
@@ -55,37 +59,37 @@ public class AccountServiceComponent {
         AccountLockHandler accountLockHandler = new AccountLockHandler();
         context.getBundleContext().registerService(AbstractEventHandler.class.getName(), accountLockHandler, null);
         if (log.isDebugEnabled()) {
-            log.debug("AccountLockHandler is registered");
+            log.debug("AccountLockHandler已注册");
         }
         AccountDisableHandler accountDisableHandler = new AccountDisableHandler();
         context.getBundleContext().registerService(AbstractEventHandler.class.getName(), accountDisableHandler, null);
         if (log.isDebugEnabled()) {
-            log.debug("AccountDisableHandler is registered");
+            log.debug("AccountDisableHandler已注册");
         }
         AccountLockService accountLockService = new AccountLockServiceImpl();
         context.getBundleContext().registerService(AccountLockService.class.getName(), accountLockService, null);
         if (log.isDebugEnabled()) {
-            log.debug("AccountLockService is registered");
+            log.debug("AccountLockService已注册");
         }
         AccountLockTenantMgtListener accountLockTenantMgtListener = new AccountLockTenantMgtListener();
         context.getBundleContext().registerService(TenantMgtListener.class, accountLockTenantMgtListener, null);
         if (log.isDebugEnabled()) {
-            log.debug("AccountLockTenantMgtListener is registered");
+            log.debug("AccountLockTenantMgtListener已注册");
         }
         try {
-            UserStoreManager userStoreManager = AccountServiceDataHolder.getInstance().getRealmService().getBootstrapRealm().
-                    getUserStoreManager();
+            UserStoreManager userStoreManager = AccountServiceDataHolder.getInstance().getRealmService()
+                    .getBootstrapRealm().getUserStoreManager();
             if (!userStoreManager.isExistingRole(AccountConstants.ACCOUNT_LOCK_BYPASS_ROLE)) {
                 userStoreManager.addRole(AccountConstants.ACCOUNT_LOCK_BYPASS_ROLE, null, null, false);
             }
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
-            log.error(String.format("Error while adding role: %s .", AccountConstants.ACCOUNT_LOCK_BYPASS_ROLE), e);
+            log.error(String.format("添加角色：%s 时发生错误。", AccountConstants.ACCOUNT_LOCK_BYPASS_ROLE), e);
         }
     }
 
     protected void deactivate(ComponentContext context) {
         if (log.isDebugEnabled()) {
-            log.debug("AccountLock bundle is de-activated");
+            log.debug("AccountLock绑定已取消激活");
         }
     }
 

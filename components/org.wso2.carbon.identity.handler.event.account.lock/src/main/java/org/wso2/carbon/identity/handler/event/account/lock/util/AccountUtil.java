@@ -16,6 +16,10 @@
 
 package org.wso2.carbon.identity.handler.event.account.lock.util;
 
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
+
 import org.apache.commons.lang.StringUtils;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
@@ -33,11 +37,10 @@ public class AccountUtil {
 
     public static String getUserStoreDomainName(UserStoreManager userStoreManager) {
         String domainNameProperty = null;
-        if(userStoreManager instanceof org.wso2.carbon.user.core.UserStoreManager) {
-            domainNameProperty = ((org.wso2.carbon.user.core.UserStoreManager)
-                                          userStoreManager).getRealmConfiguration()
+        if (userStoreManager instanceof org.wso2.carbon.user.core.UserStoreManager) {
+            domainNameProperty = ((org.wso2.carbon.user.core.UserStoreManager) userStoreManager).getRealmConfiguration()
                     .getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME);
-            if(StringUtils.isBlank(domainNameProperty)) {
+            if (StringUtils.isBlank(domainNameProperty)) {
                 domainNameProperty = IdentityUtil.getPrimaryDomainName();
             }
         }
@@ -58,15 +61,35 @@ public class AccountUtil {
             IdentityGovernanceService identityGovernanceService = AccountServiceDataHolder.getInstance()
                     .getIdentityGovernanceService();
             if (identityGovernanceService != null) {
-                connectorConfigs = identityGovernanceService.getConfiguration(new String[]{key}, tenantDomain);
+                connectorConfigs = identityGovernanceService.getConfiguration(new String[] { key }, tenantDomain);
                 if (connectorConfigs != null && connectorConfigs.length > 0) {
                     return connectorConfigs[0].getValue();
                 }
             }
             return null;
         } catch (IdentityGovernanceException e) {
-            throw new IdentityEventException("Error while getting connector configurations for property :" + key, e);
+            throw new IdentityEventException("获取属性:" + key + "的连接器配置时出错", e);
         }
+    }
+
+    /**
+     * 添加国际化资源文件方法获取资源文件value值
+     * 
+     * @param key 原字符串
+     * @return 汉化后字符串
+     * @throws MissingResourceException
+     */
+    public static String getLocalValue(String key) throws MissingResourceException {
+        if (key == null) {
+            return "";
+        }
+        ResourceBundle resourceBundle = ResourceBundle.getBundle("Resources", new Locale("zh", "CN"));
+        try {
+            return resourceBundle.getString(key);
+        } catch (MissingResourceException e) {
+            throw new MissingResourceException("缺少资源文件", null, key);
+        }
+
     }
 
 }

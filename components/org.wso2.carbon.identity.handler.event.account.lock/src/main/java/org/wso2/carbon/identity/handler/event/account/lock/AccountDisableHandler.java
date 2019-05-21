@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.ResourceBundle;
 
 public class AccountDisableHandler extends AbstractEventHandler implements IdentityConnectorConfig {
 
@@ -49,7 +50,9 @@ public class AccountDisableHandler extends AbstractEventHandler implements Ident
 
     private static ThreadLocal<String> disabledState = new ThreadLocal<>();
 
-    private enum disabledStates {DISABLED_UNMODIFIED, DISABLED_MODIFIED, ENABLED_UNMODIFIED, ENABLED_MODIFIED}
+    private enum disabledStates {
+        DISABLED_UNMODIFIED, DISABLED_MODIFIED, ENABLED_UNMODIFIED, ENABLED_MODIFIED
+    }
 
     public String getName() {
         return "account.disable.handler";
@@ -57,12 +60,12 @@ public class AccountDisableHandler extends AbstractEventHandler implements Ident
 
     @Override
     public String getFriendlyName() {
-        return "Account Disabling";
+        return AccountUtil.getLocalValue("Account.Disabling");
     }
 
     @Override
     public String getCategory() {
-        return "Login Policies";
+        return AccountUtil.getLocalValue("Login.Policies");
     }
 
     @Override
@@ -78,23 +81,27 @@ public class AccountDisableHandler extends AbstractEventHandler implements Ident
     @Override
     public void init(InitConfig initConfig) {
         super.init(initConfig);
-        AccountServiceDataHolder.getInstance().getBundleContext().registerService
-                (IdentityConnectorConfig.class.getName(), this, null);
+        AccountServiceDataHolder.getInstance().getBundleContext()
+                .registerService(IdentityConnectorConfig.class.getName(), this, null);
     }
 
     @Override
     public Map<String, String> getPropertyNameMapping() {
         Map<String, String> nameMapping = new HashMap<>();
-        nameMapping.put(AccountConstants.ACCOUNT_DISABLED_PROPERTY, "Enable Account Disabling");
-        nameMapping.put(AccountConstants.ACCOUNT_DISABLED_NOTIFICATION_INTERNALLY_MANAGE, "Enable Notification Internally Management");
+        nameMapping.put(AccountConstants.ACCOUNT_DISABLED_PROPERTY,
+                AccountUtil.getLocalValue("Enable.Account.Disabling"));
+        nameMapping.put(AccountConstants.ACCOUNT_DISABLED_NOTIFICATION_INTERNALLY_MANAGE,
+                AccountUtil.getLocalValue("Enable.Notification.Internally.Management"));
         return nameMapping;
     }
 
     @Override
     public Map<String, String> getPropertyDescriptionMapping() {
         Map<String, String> descriptionMapping = new HashMap<>();
-        descriptionMapping.put(AccountConstants.ACCOUNT_DISABLED_PROPERTY, "Enable account disable Feature");
-        descriptionMapping.put(AccountConstants.ACCOUNT_DISABLED_NOTIFICATION_INTERNALLY_MANAGE, "Set false if the client application handles notification sending");
+        descriptionMapping.put(AccountConstants.ACCOUNT_DISABLED_PROPERTY,
+                AccountUtil.getLocalValue("Enable.account.disable.Feature"));
+        descriptionMapping.put(AccountConstants.ACCOUNT_DISABLED_NOTIFICATION_INTERNALLY_MANAGE,
+                AccountUtil.getLocalValue("Set.false.if.the.client.application.handles.notification.sending"));
         return descriptionMapping;
     }
 
@@ -122,18 +129,19 @@ public class AccountDisableHandler extends AbstractEventHandler implements Ident
 
         Map<String, Object> eventProperties = event.getEventProperties();
         String userName = (String) eventProperties.get(IdentityEventConstants.EventProperty.USER_NAME);
-        UserStoreManager userStoreManager = (UserStoreManager) eventProperties.get(IdentityEventConstants.EventProperty
-                .USER_STORE_MANAGER);
+        UserStoreManager userStoreManager = (UserStoreManager) eventProperties
+                .get(IdentityEventConstants.EventProperty.USER_STORE_MANAGER);
         String userStoreDomainName = AccountUtil.getUserStoreDomainName(userStoreManager);
         String tenantDomain = (String) eventProperties.get(IdentityEventConstants.EventProperty.TENANT_DOMAIN);
 
         String usernameWithDomain = UserCoreUtil.addDomainToName(userName, userStoreDomainName);
-        boolean isAccountDisabledEnabled = Boolean.parseBoolean(AccountUtil.getConnectorConfig(AccountConstants
-                .ACCOUNT_DISABLED_PROPERTY, tenantDomain));
+        boolean isAccountDisabledEnabled = Boolean
+                .parseBoolean(AccountUtil.getConnectorConfig(AccountConstants.ACCOUNT_DISABLED_PROPERTY, tenantDomain));
 
         if (!isAccountDisabledEnabled) {
             if (log.isDebugEnabled()) {
-                log.debug("Account disable feature is disabled for tenant :" + tenantDomain);
+                log.debug(AccountUtil.getLocalValue("Account.disable.feature.is.disabled.for.tenant") + " :"
+                        + tenantDomain);
             }
             return;
         }
@@ -142,7 +150,7 @@ public class AccountDisableHandler extends AbstractEventHandler implements Ident
         try {
             userExists = userStoreManager.isExistingUser(usernameWithDomain);
         } catch (UserStoreException e) {
-            throw new IdentityEventException("Error in accessing user store", e);
+            throw new IdentityEventException(AccountUtil.getLocalValue("Error.in.accessing.user.store"), e);
         }
         if (!userExists) {
             return;
@@ -158,32 +166,35 @@ public class AccountDisableHandler extends AbstractEventHandler implements Ident
     }
 
     protected boolean handlePreAuthentication(Event event, String userName, UserStoreManager userStoreManager,
-                                              String userStoreDomainName,
-                                              String tenantDomain) throws AccountLockException {
+            String userStoreDomainName, String tenantDomain) throws AccountLockException {
 
         String accountDisabledClaim;
         try {
-            Map<String, String> claimValues = userStoreManager.getUserClaimValues(userName, new String[]{
-                    AccountConstants.ACCOUNT_DISABLED_CLAIM}, UserCoreConstants.DEFAULT_PROFILE);
+            Map<String, String> claimValues = userStoreManager.getUserClaimValues(userName,
+                    new String[] { AccountConstants.ACCOUNT_DISABLED_CLAIM }, UserCoreConstants.DEFAULT_PROFILE);
             accountDisabledClaim = claimValues.get(AccountConstants.ACCOUNT_DISABLED_CLAIM);
 
         } catch (UserStoreException e) {
-            throw new AccountLockException("Error occurred while retrieving " + AccountConstants
-                    .ACCOUNT_DISABLED_CLAIM + " claim value", e);
+            throw new AccountLockException("检索时出错" + AccountConstants.ACCOUNT_DISABLED_CLAIM + "声明值", e);
         }
         if (Boolean.parseBoolean(accountDisabledClaim)) {
             String message;
             if (StringUtils.isNotBlank(userStoreDomainName)) {
-                message = "Account is disabled for user " + userName + " in user store "
-                        + userStoreDomainName + " in tenant " + tenantDomain + ". Cannot login until the " +
-                        "account is enabled.";
+                // message = "Account is disabled for user " + userName + " in user store " +
+                // userStoreDomainName
+                // + " in tenant " + tenantDomain + ". Cannot login until the " + "account is
+                // enabled.";
+                message = "禁用租户" + tenantDomain + "的用户存储" + userStoreDomainName + "中的用户" + userName
+                        + "的账户。在账户启用之前无法登录。";
             } else {
-                message = "Account is disabled for user " + userName + " in tenant " + tenantDomain + ". Cannot" +
-                        " login until the account is enabled.";
+                // message = "Account is disabled for user " + userName + " in tenant " +
+                // tenantDomain + ". Cannot"
+                // + " login until the account is enabled.";
+                message = "禁用租户" + tenantDomain + "的用户" + userName + "的账户。在账户启用之前无法登录。";
             }
 
             if (log.isDebugEnabled()) {
-                log.debug(String.format("Authentication failed for user %s as the account is disabled", userName));
+                log.debug(String.format("由于用户%s 账户被禁用，认证失败。", userName));
             }
 
             IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(
@@ -196,29 +207,26 @@ public class AccountDisableHandler extends AbstractEventHandler implements Ident
     }
 
     protected boolean handlePreSetUserClaimValues(Event event, String userName, UserStoreManager userStoreManager,
-                                                  String userStoreDomainName,
-                                                  String tenantDomain) throws AccountLockException {
-
+            String userStoreDomainName, String tenantDomain) throws AccountLockException {
 
         if (disabledState.get() != null) {
             return true;
         }
         boolean existingAccountDisabledValue;
         try {
-            Map<String, String> claimValues = userStoreManager.getUserClaimValues(userName, new String[]{
-                    AccountConstants.ACCOUNT_DISABLED_CLAIM}, UserCoreConstants.DEFAULT_PROFILE);
-            existingAccountDisabledValue = Boolean.parseBoolean(claimValues.get(AccountConstants
-                    .ACCOUNT_DISABLED_CLAIM));
+            Map<String, String> claimValues = userStoreManager.getUserClaimValues(userName,
+                    new String[] { AccountConstants.ACCOUNT_DISABLED_CLAIM }, UserCoreConstants.DEFAULT_PROFILE);
+            existingAccountDisabledValue = Boolean
+                    .parseBoolean(claimValues.get(AccountConstants.ACCOUNT_DISABLED_CLAIM));
         } catch (UserStoreException e) {
-            throw new AccountLockException("Error occurred while retrieving " + AccountConstants
-                    .ACCOUNT_DISABLED_CLAIM + " claim value", e);
+            throw new AccountLockException("检索时发生错误" + AccountConstants.ACCOUNT_DISABLED_CLAIM + "声明值", e);
         }
 
-        String newAccountDisableString = ((Map<String, String>) event.getEventProperties().get("USER_CLAIMS")).get
-                (AccountConstants.ACCOUNT_DISABLED_CLAIM);
+        String newAccountDisableString = ((Map<String, String>) event.getEventProperties().get("USER_CLAIMS"))
+                .get(AccountConstants.ACCOUNT_DISABLED_CLAIM);
         if (StringUtils.isNotBlank(newAccountDisableString)) {
-            Boolean newAccountDisabledValue = Boolean.parseBoolean(
-                    ((Map<String, String>) event.getEventProperties().get("USER_CLAIMS"))
+            Boolean newAccountDisabledValue = Boolean
+                    .parseBoolean(((Map<String, String>) event.getEventProperties().get("USER_CLAIMS"))
                             .get(AccountConstants.ACCOUNT_DISABLED_CLAIM));
             if (existingAccountDisabledValue != newAccountDisabledValue) {
                 if (existingAccountDisabledValue) {
@@ -249,27 +257,28 @@ public class AccountDisableHandler extends AbstractEventHandler implements Ident
     }
 
     protected boolean handlePostSetUserClaimValues(Event event, String userName, UserStoreManager userStoreManager,
-                                                   String userStoreDomainName,
-                                                   String tenantDomain) throws AccountLockException {
+            String userStoreDomainName, String tenantDomain) throws AccountLockException {
 
         try {
 
             boolean notificationInternallyManage = true;
 
             try {
-                notificationInternallyManage = Boolean.parseBoolean(AccountUtil.getConnectorConfig(AccountConstants
-                        .ACCOUNT_DISABLED_NOTIFICATION_INTERNALLY_MANAGE, tenantDomain));
+                notificationInternallyManage = Boolean.parseBoolean(AccountUtil.getConnectorConfig(
+                        AccountConstants.ACCOUNT_DISABLED_NOTIFICATION_INTERNALLY_MANAGE, tenantDomain));
             } catch (IdentityEventException e) {
-                log.warn("Error while reading Notification internally manage property in account lock handler");
+                log.warn(AccountUtil.getLocalValue(
+                        "Error.while.reading.Notification.internally.manage.property.in.account.lock.handler"));
                 if (log.isDebugEnabled()) {
-                    log.debug("Error while reading Notification internally manage property in account lock handler", e);
+                    log.debug(AccountUtil.getLocalValue(
+                            "Error.while.reading.Notification.internally.manage.property.in.account.lock.handler"), e);
                 }
             }
 
             if (disabledStates.ENABLED_MODIFIED.toString().equals(disabledState.get())) {
 
                 if (log.isDebugEnabled()) {
-                    log.debug(String.format("User %s is enabled", userName));
+                    log.debug(String.format("开启用户 %s", userName));
                 }
 
                 if (notificationInternallyManage) {
@@ -279,7 +288,7 @@ public class AccountDisableHandler extends AbstractEventHandler implements Ident
             } else if (disabledStates.DISABLED_MODIFIED.toString().equals(disabledState.get())) {
 
                 if (log.isDebugEnabled()) {
-                    log.debug(String.format("User %s is disabled", userName));
+                    log.debug(String.format("禁用用户 %s", userName));
                 }
 
                 if (notificationInternallyManage) {
@@ -294,8 +303,7 @@ public class AccountDisableHandler extends AbstractEventHandler implements Ident
     }
 
     protected void triggerNotification(Event event, String userName, UserStoreManager userStoreManager,
-                                       String userStoreDomainName, String tenantDomain,
-                                       String notificationEvent) throws AccountLockException {
+            String userStoreDomainName, String tenantDomain, String notificationEvent) throws AccountLockException {
 
         String eventName = IdentityEventConstants.Event.TRIGGER_NOTIFICATION;
 
@@ -308,8 +316,9 @@ public class AccountDisableHandler extends AbstractEventHandler implements Ident
         try {
             AccountServiceDataHolder.getInstance().getIdentityEventService().handleEvent(identityMgtEvent);
         } catch (Exception e) {
-            String errorMsg = "Error occurred while calling triggerNotification, detail : " + e.getMessage();
-            //We are not throwing any exception from here, because this event notification should not break the main
+            String errorMsg = "回调triggerNotification时发生错误, 详情: " + e.getMessage();
+            // We are not throwing any exception from here, because this event notification
+            // should not break the main
             // flow.
             log.warn(errorMsg);
             if (log.isDebugEnabled()) {
